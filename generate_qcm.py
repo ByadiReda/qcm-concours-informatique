@@ -13,7 +13,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from questions import QUESTIONS
 
@@ -201,12 +201,12 @@ def build_pdf() -> None:
     ]
 
     for index, question in enumerate(QUESTIONS, start=1):
-        story.extend(question_block(index, question, styles))
+        story.append(KeepTogether(question_block(index, question, styles)))
 
     story.extend([PageBreak(), Paragraph("Corrigés", styles["SectionQCM"])])
 
     for index, question in enumerate(QUESTIONS, start=1):
-        story.extend(answer_block(index, question, styles))
+        story.append(KeepTogether(answer_block(index, question, styles)))
 
     doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
 
