@@ -124,7 +124,16 @@ def ordered_questions():
     category_numbers = Counter()
     for category in CATEGORY_ORDER:
         for difficulty in DIFFICULTY_ORDER:
-            for question in grouped[(category, difficulty)]:
+            bucket = sorted(
+                grouped[(category, difficulty)],
+                key=lambda question: (
+                    question["statement"],
+                    tuple(question["options"]),
+                    question["answer"],
+                    question["explanation"],
+                ),
+            )
+            for question in bucket:
                 category_numbers[category] += 1
                 numbered.append(
                     {

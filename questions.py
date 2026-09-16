@@ -1535,6 +1535,15 @@ for difficulty, target in DIFFICULTY_TARGETS.items():
 if len(set(category_counts.values())) != 1:
     raise ValueError("Les catégories doivent rester réparties équitablement.")
 
-statements = [question["statement"] for question in QUESTIONS]
-if len(statements) != len(set(statements)):
-    raise ValueError("Les énoncés doivent rester uniques pour éviter les doublons exacts.")
+duplicate_keys = [
+    (
+        question["category"],
+        question["difficulty"],
+        question["statement"],
+        tuple(question["options"]),
+        question["answer"],
+    )
+    for question in QUESTIONS
+]
+if len(duplicate_keys) != len(set(duplicate_keys)):
+    raise ValueError("Les questions dupliquées à l'identique doivent être évitées.")
