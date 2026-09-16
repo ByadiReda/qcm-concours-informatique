@@ -82,7 +82,7 @@ SEED_QUESTIONS = [{'category': 'Génie logiciel',
  {'category': 'Génie logiciel',
   'difficulty': 'Intermédiaire',
   'statement': 'Dans un diagramme de séquence UML, que représente une flèche entre deux objets ?',
-  'options': ['Une héritage', 'Un message échangé', 'Une clé étrangère', 'Un package'],
+  'options': ['Un héritage', 'Un message échangé', 'Une clé étrangère', 'Un package'],
   'answer': 'B',
   'explanation': "Le diagramme de séquence met en évidence les messages échangés dans l'ordre temporel."},
  {'category': 'Génie logiciel',
@@ -268,7 +268,7 @@ SEED_QUESTIONS = [{'category': 'Génie logiciel',
   'statement': 'Quel effet a le mot-clé `volatile` sur un champ partagé entre threads ?',
   'options': ['Il rend toutes les opérations atomiques',
               'Il garantit surtout la visibilité des écritures entre threads',
-              'Il empêche tout blocage`,',
+              'Il empêche tout blocage',
               'Il remplace `synchronized` dans tous les cas'],
   'answer': 'B',
   'explanation': "`volatile` garantit la visibilité mémoire, mais pas l'atomicité d'opérations composées comme "
@@ -1473,8 +1473,10 @@ def build_questions():
 
 QUESTIONS = build_questions()
 
-if len(QUESTIONS) < 600:
-    raise ValueError("Le jeu de questions doit contenir au moins 600 QCM.")
+EXPECTED_TOTAL = len(CATEGORY_ORDER) * sum(DIFFICULTY_TARGETS.values())
+
+if len(QUESTIONS) != EXPECTED_TOTAL:
+    raise ValueError(f"Le jeu de questions doit contenir exactement {EXPECTED_TOTAL} QCM.")
 
 category_counts = Counter(question["category"] for question in QUESTIONS)
 difficulty_counts = Counter(question["difficulty"] for question in QUESTIONS)

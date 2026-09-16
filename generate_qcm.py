@@ -189,6 +189,7 @@ def question_block(question: dict, styles):
 
 def answer_block(question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
+    selected_option = question["options"]["ABCD".index(question["answer"])]
     title = colored_header(
         f"Corrigé Q{question['number']} • {question['category_id']} • Niveau {question['difficulty']}",
         color,
@@ -196,7 +197,7 @@ def answer_block(question: dict, styles):
     )
     return [
         KeepTogether([title, Spacer(1, 0.12 * cm), Paragraph(html.escape(question["statement"]), styles["QuestionText"])]),
-        Paragraph(f"<b>Bonne réponse :</b> {question['answer']}", styles["AnswerText"]),
+        Paragraph(f"<b>Bonne réponse :</b> {question['answer']} — {html.escape(selected_option)}", styles["AnswerText"]),
         Paragraph(f"<b>Explication :</b> {html.escape(question['explanation'])}", styles["AnswerText"]),
         Spacer(1, 0.22 * cm),
     ]
