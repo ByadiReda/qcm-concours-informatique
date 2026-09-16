@@ -21,6 +21,11 @@ ROOT = Path(__file__).resolve().parent
 OUTPUT_FILE = ROOT / "QCM_Concours.pdf"
 FONT_NAME = "DejaVuSans"
 FONT_BOLD = "DejaVuSans-Bold"
+LEFT_MARGIN = 1.5 * cm
+RIGHT_MARGIN = 1.5 * cm
+TOP_MARGIN = 1.5 * cm
+BOTTOM_MARGIN = 1.8 * cm
+CONTENT_WIDTH = A4[0] - LEFT_MARGIN - RIGHT_MARGIN
 
 CATEGORY_COLORS = {
     "Génie logiciel": colors.HexColor("#1d4ed8"),
@@ -43,6 +48,9 @@ def resolve_font_path(file_name: str) -> Path:
             Path("/usr/share/fonts/truetype/dejavu") / file_name,
             Path("/usr/local/share/fonts") / file_name,
             Path.home() / ".local" / "share" / "fonts" / file_name,
+            Path("/Library/Fonts") / file_name,
+            Path("/System/Library/Fonts") / file_name,
+            Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / file_name,
         ]
     )
     for candidate in candidates:
@@ -113,7 +121,7 @@ def cover_table(styles):
 def question_block(index: int, question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
     meta_text = f"Q{index} • {question['category']} • Niveau {question['difficulty']}"
-    header = Table([[Paragraph(meta_text, styles["QuestionMeta"])]] , colWidths=[17.5 * cm])
+    header = Table([[Paragraph(meta_text, styles["QuestionMeta"])]] , colWidths=[CONTENT_WIDTH])
     header.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), color),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
@@ -130,7 +138,7 @@ def question_block(index: int, question: dict, styles):
 
 def answer_block(index: int, question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
-    title = Table([[Paragraph(f"Corrigé Q{index} • {question['category']} • Niveau {question['difficulty']}", styles["QuestionMeta"])]] , colWidths=[17.5 * cm])
+    title = Table([[Paragraph(f"Corrigé Q{index} • {question['category']} • Niveau {question['difficulty']}", styles["QuestionMeta"])]] , colWidths=[CONTENT_WIDTH])
     title.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), color),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
@@ -163,10 +171,10 @@ def build_pdf() -> None:
     doc = SimpleDocTemplate(
         str(OUTPUT_FILE),
         pagesize=A4,
-        leftMargin=1.5 * cm,
-        rightMargin=1.5 * cm,
-        topMargin=1.5 * cm,
-        bottomMargin=1.8 * cm,
+        leftMargin=LEFT_MARGIN,
+        rightMargin=RIGHT_MARGIN,
+        topMargin=TOP_MARGIN,
+        bottomMargin=BOTTOM_MARGIN,
         title="QCM Concours Informatique",
         author="GitHub Copilot",
     )
