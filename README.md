@@ -24,6 +24,8 @@ Le PDF couvre les catégories suivantes, avec les niveaux **Basique**, **Interm�
 
 ## Régénérer le PDF
 
+Prérequis : disposer des polices `DejaVuSans.ttf` et `DejaVuSans-Bold.ttf`, soit déjà installées sur la machine, soit copiées dans le dossier `./fonts/`, soit accessibles via la variable d'environnement `QCM_FONT_DIR`.
+
 ```bash
 pip install -r requirements.txt
 python generate_qcm.py

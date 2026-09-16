@@ -19,6 +19,7 @@ from questions import QUESTIONS
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_FILE = ROOT / "QCM_Concours.pdf"
+PDF_AUTHOR = os.environ.get("QCM_PDF_AUTHOR", "qcm-concours-informatique")
 FONT_NAME = "DejaVuSans"
 FONT_BOLD = "DejaVuSans-Bold"
 LEFT_MARGIN = 1.5 * cm
@@ -178,7 +179,7 @@ def build_pdf() -> None:
         topMargin=TOP_MARGIN,
         bottomMargin=BOTTOM_MARGIN,
         title="QCM Concours Informatique",
-        author="GitHub Copilot",
+        author=PDF_AUTHOR,
     )
 
     story = [
