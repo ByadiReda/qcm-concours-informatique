@@ -191,6 +191,10 @@ def toc_link(label: str, target: str) -> str:
     return f'<link href="#{target}">{html.escape(label)}</link>'
 
 
+def inline_hex_color(color) -> str:
+    return color.hexval().replace("0x", "#")
+
+
 def question_block(question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
     meta_text = f"Q{question['number']} • {question['category_id']} • {question['category']} • Niveau {question['difficulty']}"
@@ -306,7 +310,7 @@ def build_pdf() -> None:
                 outline_title=f"Questions — {category}",
             )
         )
-        story.append(Paragraph(f"<font color='{color.hexval()}'><b>Préfixe catégorie :</b> {CATEGORY_PREFIXES[category]} — <b>Total :</b> {len(questions_for_category)} questions — <link href='#{toc_anchor}'>Retour à la table des matières</link></font>", styles["SmallMuted"]))
+        story.append(Paragraph(f"<font color='{inline_hex_color(color)}'><b>Préfixe catégorie :</b> {CATEGORY_PREFIXES[category]} — <b>Total :</b> {len(questions_for_category)} questions — <link href='#{toc_anchor}'>Retour à la table des matières</link></font>", styles["SmallMuted"]))
         story.append(Spacer(1, 0.1 * cm))
 
         for difficulty in DIFFICULTY_ORDER:
