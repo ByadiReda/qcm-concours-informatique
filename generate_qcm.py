@@ -44,6 +44,17 @@ CATEGORY_COLORS = {
 ARABIC_RESHAPER = arabic_reshaper.ArabicReshaper(configuration={"delete_harakat": False})
 
 
+class QCMDocTemplate(SimpleDocTemplate):
+    def afterFlowable(self, flowable):
+        bookmark_name = getattr(flowable, "_bookmark_name", None)
+        if bookmark_name:
+            self.canv.bookmarkPage(bookmark_name)
+        outline_level = getattr(flowable, "_outline_level", None)
+        outline_title = getattr(flowable, "_outline_title", None)
+        if bookmark_name and outline_level is not None and outline_title:
+            self.canv.addOutlineEntry(outline_title, bookmark_name, level=outline_level, closed=False)
+
+
 def resolve_font_path(file_name: str) -> Path:
     candidates = []
     font_dir = os.environ.get("QCM_FONT_DIR")
@@ -168,8 +179,12 @@ def colored_header(text: str, color, styles):
     return header
 
 
-def anchor_paragraph(anchor: str, text: str, style):
-    return Paragraph(f'<a name="{anchor}"/>{html.escape(text)}', style)
+def anchor_paragraph(anchor: str, text: str, style, outline_level: int | None = None, outline_title: str | None = None):
+    paragraph = Paragraph(f'<a name="{anchor}"/>{html.escape(text)}', style)
+    paragraph._bookmark_name = anchor
+    paragraph._outline_level = outline_level
+    paragraph._outline_title = outline_title or text
+    return paragraph
 
 
 def toc_link(label: str, target: str) -> str:
@@ -219,7 +234,7 @@ def build_pdf() -> None:
     for question in numbered_questions:
         grouped[question["category"]].append(question)
 
-    doc = SimpleDocTemplate(
+    doc = QCMDocTemplate(
         str(OUTPUT_FILE),
         pagesize=A4,
         leftMargin=LEFT_MARGIN,
@@ -282,21 +297,29 @@ def build_pdf() -> None:
         color = CATEGORY_COLORS[category]
         questions_for_category = grouped[category]
 
-        story.append(anchor_paragraph(question_anchor, f"{category} — Questions", styles["CategoryTitle"]))
+        story.append(anchor_paragraph(question_anchor, f"{category} — Questions", styles["CategoryTitle"], outline_level=0))
         story.append(Paragraph(f"<font color='{color.hexval()}'><b>Préfixe catégorie :</b> {CATEGORY_PREFIXES[category]} — <b>Total :</b> {len(questions_for_category)} questions — <link href='#{toc_anchor}'>Retour à la table des matières</link></font>", styles["SmallMuted"]))
         story.append(Spacer(1, 0.1 * cm))
 
         for difficulty in DIFFICULTY_ORDER:
             difficulty_slug = slugify(difficulty)
             questions_for_level = [question for question in questions_for_category if question["difficulty"] == difficulty]
-            story.append(anchor_paragraph(f"{question_anchor}-{difficulty_slug}", f"Niveau {difficulty}", styles["DifficultyTitle"]))
+            story.append(
+                anchor_paragraph(
+                    f"{question_anchor}-{difficulty_slug}",
+                    f"Niveau {difficulty}",
+                    styles["DifficultyTitle"],
+                    outline_level=1,
+                    outline_title=f"{category} — Niveau {difficulty}",
+                )
+            )
             story.append(Paragraph(f"{len(questions_for_level)} questions pour ce niveau.", styles["SmallMuted"]))
             for question in questions_for_level:
                 story.extend(question_block(question, styles))
 
         story.extend([
             PageBreak(),
-            anchor_paragraph(answer_anchor, f"{category} — Corrigé", styles["CategoryTitle"]),
+            anchor_paragraph(answer_anchor, f"{category} — Corrigé", styles["CategoryTitle"], outline_level=1),
             Paragraph(f"<b>Corrigé de la catégorie {html.escape(category)}</b> — <link href='#{question_anchor}'>Retour aux questions de la catégorie</link> • <link href='#{toc_anchor}'>Retour à la table des matières</link>", styles["SmallMuted"]),
             Spacer(1, 0.1 * cm),
         ])

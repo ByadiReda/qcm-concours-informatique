@@ -1326,6 +1326,12 @@ TOPIC_BANKS = {'Génie logiciel': [('Cycle en V',
                                            'appliquer une stratégie gloutonne sans preuve de validité peut donner une '
                                            'solution sous-optimale')]}
 
+def _validate_topic_bank(category, topics):
+    if len(topics) < 16:
+        raise ValueError(
+            f"La banque de thèmes de {category} doit contenir au moins 16 entrées pour générer les volumes attendus."
+        )
+
 
 def _sentence(text):
     text = text.strip()
@@ -1461,6 +1467,7 @@ def _advanced_questions(category, topics):
 
 def _generated_questions_for_category(category):
     topics = TOPIC_BANKS[category]
+    _validate_topic_bank(category, topics)
     return _basic_questions(category, topics) + _intermediate_questions(category, topics) + _advanced_questions(category, topics[:16])
 
 
