@@ -169,9 +169,15 @@ expected_categories = {
 expected_difficulties = {"Basique", "Intermédiaire", "Avancé"}
 
 if set(category_counts) != expected_categories:
-    raise ValueError("Les catégories attendues ne sont pas toutes présentes.")
+    raise ValueError(
+        f"Les catégories doivent correspondre exactement à l'ensemble attendu. "
+        f"Obtenu={sorted(category_counts)}, attendu={sorted(expected_categories)}"
+    )
 if set(difficulty_counts) != expected_difficulties:
-    raise ValueError("Les niveaux attendus ne sont pas tous présents.")
+    raise ValueError(
+        f"Les niveaux doivent correspondre exactement à l'ensemble attendu. "
+        f"Obtenu={sorted(difficulty_counts)}, attendu={sorted(expected_difficulties)}"
+    )
 if len(set(category_counts.values())) != 1:
     raise ValueError("Les catégories doivent être réparties équitablement.")
 if len(set(pairs.values())) != 1:

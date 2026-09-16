@@ -120,7 +120,7 @@ def cover_table(styles):
 
 
 def colored_header(text: str, color, styles):
-    header = Table([[Paragraph(text, styles["QuestionMeta"])]] , colWidths=[CONTENT_WIDTH])
+    header = Table([[Paragraph(text, styles["QuestionMeta"])]], colWidths=[CONTENT_WIDTH])
     header.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), color),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
