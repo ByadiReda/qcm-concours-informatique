@@ -118,10 +118,8 @@ def cover_table(styles):
     return table
 
 
-def question_block(index: int, question: dict, styles):
-    color = CATEGORY_COLORS[question["category"]]
-    meta_text = f"Q{index} • {question['category']} • Niveau {question['difficulty']}"
-    header = Table([[Paragraph(meta_text, styles["QuestionMeta"])]] , colWidths=[CONTENT_WIDTH])
+def colored_header(text: str, color, styles):
+    header = Table([[Paragraph(text, styles["QuestionMeta"])]] , colWidths=[CONTENT_WIDTH])
     header.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), color),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
@@ -129,6 +127,13 @@ def question_block(index: int, question: dict, styles):
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
+    return header
+
+
+def question_block(index: int, question: dict, styles):
+    color = CATEGORY_COLORS[question["category"]]
+    meta_text = f"Q{index} • {question['category']} • Niveau {question['difficulty']}"
+    header = colored_header(meta_text, color, styles)
     flowables = [header, Spacer(1, 0.12 * cm), Paragraph(question["statement"], styles["QuestionText"])]
     for label, option in zip(["A", "B", "C", "D"], question["options"]):
         flowables.append(Paragraph(f"<b>{label}.</b> {option}", styles["OptionText"]))
@@ -138,14 +143,11 @@ def question_block(index: int, question: dict, styles):
 
 def answer_block(index: int, question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
-    title = Table([[Paragraph(f"Corrigé Q{index} • {question['category']} • Niveau {question['difficulty']}", styles["QuestionMeta"])]] , colWidths=[CONTENT_WIDTH])
-    title.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), color),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-    ]))
+    title = colored_header(
+        f"Corrigé Q{index} • {question['category']} • Niveau {question['difficulty']}",
+        color,
+        styles,
+    )
     return [
         title,
         Spacer(1, 0.12 * cm),
@@ -160,7 +162,7 @@ def add_page_number(canvas, doc):
     canvas.saveState()
     canvas.setFont(FONT_NAME, 9)
     canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawRightString(A4[0] - 1.5 * cm, 1.2 * cm, f"Page {doc.page}")
+    canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, 1.2 * cm, f"Page {doc.page}")
     canvas.restoreState()
 
 
