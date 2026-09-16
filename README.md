@@ -1,14 +1,14 @@
 # qcm-concours-informatique
 
-QCM pour concours en **génie logiciel**, **développement informatique** et **base de données**, avec génération d'un PDF prêt à télécharger.
+QCM de préparation au concours d'informatique, avec génération d'un PDF structuré et prêt à télécharger.
 
 ## Contenu
 
 Le dépôt contient :
 
-- `questions.py` : base structurée de **108 QCM**
+- `questions.py` : banque structurée de **648 QCM**
 - `generate_qcm.py` : script Python qui génère le PDF
-- `QCM_Concours.pdf` : PDF final avec questions et corrigés
+- `QCM_Concours.pdf` : PDF final régénéré avec questions et corrigés
 - `requirements.txt` : dépendances Python
 
 ## Couverture du QCM
@@ -21,6 +21,23 @@ Le PDF couvre les catégories suivantes, avec les niveaux **Basique**, **Interm�
 - SQL / Bases de données
 - Développement Web
 - Algorithmes et structures de données
+
+### Répartition actuelle
+
+- **108 questions par catégorie**
+- **648 questions au total**
+- **Par catégorie** : 38 Basique • 43 Intermédiaire • 27 Avancé
+
+## Structure du PDF
+
+Le document généré inclut :
+
+- une **table des matières cliquable** au début ;
+- une **section par catégorie** ;
+- des **sous-sections par niveau** dans chaque catégorie ;
+- une **numérotation continue** de `Q1` à `Q648` ;
+- un **identifiant local par catégorie** (ex. `JAVA-042`, `SQL-017`, `ALGO-103`) ;
+- un **corrigé détaillé à la fin de chaque catégorie**.
 
 ## Régénérer le PDF
 

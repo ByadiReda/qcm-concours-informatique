@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import html
 import os
-from collections import Counter
+import re
+import unicodedata
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import arabic_reshaper
@@ -15,7 +18,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from questions import QUESTIONS
+from questions import CATEGORY_ORDER, CATEGORY_PREFIXES, DIFFICULTY_ORDER, QUESTIONS
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_FILE = ROOT / "QCM_Concours.pdf"
@@ -36,6 +39,9 @@ CATEGORY_COLORS = {
     "Développement Web": colors.HexColor("#7c3aed"),
     "Algorithmes et structures de données": colors.HexColor("#be123c"),
 }
+
+
+ARABIC_RESHAPER = arabic_reshaper.ArabicReshaper(configuration={"delete_harakat": False})
 
 
 def resolve_font_path(file_name: str) -> Path:
@@ -68,11 +74,14 @@ def register_fonts() -> None:
     pdfmetrics.registerFont(TTFont(FONT_BOLD, str(resolve_font_path("DejaVuSans-Bold.ttf"))))
 
 
-ARABIC_RESHAPER = arabic_reshaper.ArabicReshaper(configuration={"delete_harakat": False})
-
-
 def shape_arabic(text: str) -> str:
     return get_display(ARABIC_RESHAPER.reshape(text))
+
+
+def slugify(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", "-", ascii_value.lower()).strip("-")
 
 
 def build_styles():
@@ -81,26 +90,54 @@ def build_styles():
     styles.add(ParagraphStyle(name="SubTitleQCM", parent=styles["Normal"], fontName=FONT_NAME, fontSize=12, leading=16, alignment=TA_CENTER, textColor=colors.HexColor("#334155"), spaceAfter=8))
     styles.add(ParagraphStyle(name="ArabicTitle", parent=styles["Normal"], fontName=FONT_BOLD, fontSize=16, leading=20, alignment=TA_CENTER, textColor=colors.HexColor("#166534"), spaceAfter=10))
     styles.add(ParagraphStyle(name="SectionQCM", parent=styles["Heading2"], fontName=FONT_BOLD, fontSize=15, leading=18, textColor=colors.white, backColor=colors.HexColor("#1e293b"), borderPadding=(6, 8, 6), spaceBefore=8, spaceAfter=8))
+    styles.add(ParagraphStyle(name="CategoryTitle", parent=styles["Heading1"], fontName=FONT_BOLD, fontSize=16, leading=20, textColor=colors.HexColor("#0f172a"), spaceBefore=8, spaceAfter=8))
+    styles.add(ParagraphStyle(name="DifficultyTitle", parent=styles["Heading3"], fontName=FONT_BOLD, fontSize=12.5, leading=16, textColor=colors.HexColor("#1f2937"), spaceBefore=6, spaceAfter=6))
     styles.add(ParagraphStyle(name="QuestionMeta", parent=styles["Normal"], fontName=FONT_BOLD, fontSize=10, textColor=colors.white, leading=12))
     styles.add(ParagraphStyle(name="QuestionText", parent=styles["BodyText"], fontName=FONT_NAME, fontSize=11, leading=15, textColor=colors.HexColor("#111827"), spaceAfter=6))
     styles.add(ParagraphStyle(name="OptionText", parent=styles["BodyText"], fontName=FONT_NAME, fontSize=10.5, leading=14, leftIndent=12, textColor=colors.HexColor("#1f2937"), spaceAfter=1))
     styles.add(ParagraphStyle(name="AnswerText", parent=styles["BodyText"], fontName=FONT_NAME, fontSize=10.5, leading=14, textColor=colors.HexColor("#111827"), spaceAfter=6))
     styles.add(ParagraphStyle(name="SmallMuted", parent=styles["Normal"], fontName=FONT_NAME, fontSize=9.5, leading=12, textColor=colors.HexColor("#475569"), spaceAfter=4))
+    styles.add(ParagraphStyle(name="TocEntry", parent=styles["BodyText"], fontName=FONT_NAME, fontSize=10.5, leading=14, textColor=colors.HexColor("#0f172a"), spaceAfter=3))
+    styles.add(ParagraphStyle(name="TocSubEntry", parent=styles["BodyText"], fontName=FONT_NAME, fontSize=9.8, leading=13, leftIndent=14, textColor=colors.HexColor("#334155"), spaceAfter=2))
     return styles
 
 
-def cover_table(styles):
-    category_counts = Counter(question["category"] for question in QUESTIONS)
-    category_difficulty_counts = Counter((question["category"], question["difficulty"]) for question in QUESTIONS)
+def ordered_questions():
+    grouped = defaultdict(list)
+    for question in QUESTIONS:
+        grouped[(question["category"], question["difficulty"])].append(question)
+
+    numbered = []
+    global_number = 1
+    category_numbers = Counter()
+    for category in CATEGORY_ORDER:
+        for difficulty in DIFFICULTY_ORDER:
+            for question in grouped[(category, difficulty)]:
+                category_numbers[category] += 1
+                numbered.append(
+                    {
+                        **question,
+                        "number": global_number,
+                        "category_number": category_numbers[category],
+                        "category_id": f"{CATEGORY_PREFIXES[category]}-{category_numbers[category]:03d}",
+                    }
+                )
+                global_number += 1
+    return numbered
+
+
+def cover_table(styles, numbered_questions):
+    category_counts = Counter(question["category"] for question in numbered_questions)
+    category_difficulty_counts = Counter((question["category"], question["difficulty"]) for question in numbered_questions)
     rows = [[Paragraph("<b>Catégorie</b>", styles["QuestionText"]), Paragraph("<b>Questions</b>", styles["QuestionText"]), Paragraph("<b>Répartition</b>", styles["QuestionText"])]]
-    for category, count in category_counts.items():
+    for category in CATEGORY_ORDER:
         distribution = " / ".join(
             f"{category_difficulty_counts[(category, difficulty)]} {difficulty}"
-            for difficulty in ("Basique", "Intermédiaire", "Avancé")
+            for difficulty in DIFFICULTY_ORDER
         )
         rows.append([
             Paragraph(category, styles["QuestionText"]),
-            Paragraph(str(count), styles["QuestionText"]),
+            Paragraph(str(category_counts[category]), styles["QuestionText"]),
             Paragraph(distribution, styles["QuestionText"]),
         ])
     table = Table(rows, colWidths=[6.1 * cm, 2.2 * cm, 7.2 * cm])
@@ -131,28 +168,36 @@ def colored_header(text: str, color, styles):
     return header
 
 
-def question_block(index: int, question: dict, styles):
+def anchor_paragraph(anchor: str, text: str, style):
+    return Paragraph(f'<a name="{anchor}"/>{html.escape(text)}', style)
+
+
+def toc_link(label: str, target: str) -> str:
+    return f'<link href="#{target}">{html.escape(label)}</link>'
+
+
+def question_block(question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
-    meta_text = f"Q{index} • {question['category']} • Niveau {question['difficulty']}"
+    meta_text = f"Q{question['number']} • {question['category_id']} • {question['category']} • Niveau {question['difficulty']}"
     header = colored_header(meta_text, color, styles)
-    flowables = [KeepTogether([header, Spacer(1, 0.12 * cm), Paragraph(question["statement"], styles["QuestionText"])])]
+    flowables = [KeepTogether([header, Spacer(1, 0.12 * cm), Paragraph(html.escape(question["statement"]), styles["QuestionText"])])]
     for label, option in zip(["A", "B", "C", "D"], question["options"]):
-        flowables.append(Paragraph(f"<b>{label}.</b> {option}", styles["OptionText"]))
+        flowables.append(Paragraph(f"<b>{label}.</b> {html.escape(option)}", styles["OptionText"]))
     flowables.append(Spacer(1, 0.25 * cm))
     return flowables
 
 
-def answer_block(index: int, question: dict, styles):
+def answer_block(question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
     title = colored_header(
-        f"Corrigé Q{index} • {question['category']} • Niveau {question['difficulty']}",
+        f"Corrigé Q{question['number']} • {question['category_id']} • Niveau {question['difficulty']}",
         color,
         styles,
     )
     return [
-        KeepTogether([title, Spacer(1, 0.12 * cm), Paragraph(question["statement"], styles["QuestionText"])]),
+        KeepTogether([title, Spacer(1, 0.12 * cm), Paragraph(html.escape(question["statement"]), styles["QuestionText"])]),
         Paragraph(f"<b>Bonne réponse :</b> {question['answer']}", styles["AnswerText"]),
-        Paragraph(f"<b>Explication :</b> {question['explanation']}", styles["AnswerText"]),
+        Paragraph(f"<b>Explication :</b> {html.escape(question['explanation'])}", styles["AnswerText"]),
         Spacer(1, 0.22 * cm),
     ]
 
@@ -165,10 +210,14 @@ def add_page_number(canvas, doc):
     canvas.restoreState()
 
 
-
 def build_pdf() -> None:
     register_fonts()
     styles = build_styles()
+    numbered_questions = ordered_questions()
+    grouped = defaultdict(list)
+    for question in numbered_questions:
+        grouped[question["category"]].append(question)
+
     doc = SimpleDocTemplate(
         str(OUTPUT_FILE),
         pagesize=A4,
@@ -180,31 +229,80 @@ def build_pdf() -> None:
         author=PDF_AUTHOR,
     )
 
+    total_questions = len(numbered_questions)
+    toc_anchor = "toc-top"
     story = [
-        Paragraph("QCM Concours Informatique", styles["TitleQCM"]),
+        Paragraph(f'<a name="{toc_anchor}"/>QCM Concours Informatique', styles["TitleQCM"]),
         Paragraph(shape_arabic("هندسة البرمجيات والتطوير"), styles["ArabicTitle"]),
-        Paragraph("Préparation concours • Génie logiciel • Développement informatique • Base de données", styles["SubTitleQCM"]),
-        Paragraph("Ce document contient 108 QCM répartis équitablement sur 6 catégories, avec 3 niveaux de difficulté et une section corrigés détaillée en fin de document.", styles["QuestionText"]),
+        Paragraph("Préparation concours • Génie logiciel • Java • Spring • SQL • Web • Algorithmes", styles["SubTitleQCM"]),
+        Paragraph(
+            f"Ce document contient {total_questions} QCM répartis en 6 grandes catégories. Chaque catégorie est organisée par niveau (Basique, Intermédiaire, Avancé) et suivie de son corrigé détaillé.",
+            styles["QuestionText"],
+        ),
         Spacer(1, 0.2 * cm),
         Paragraph("Table des matières", styles["SectionQCM"]),
-        Paragraph("1. Questions numérotées Q1 à Q108", styles["QuestionText"]),
-        Paragraph("2. Corrigés et explications Q1 à Q108", styles["QuestionText"]),
-        Spacer(1, 0.1 * cm),
-        cover_table(styles),
-        Spacer(1, 0.35 * cm),
-        Paragraph("Niveaux : Basique, Intermédiaire, Avancé", styles["SmallMuted"]),
-        Paragraph("Catégories : Génie logiciel, Java, Spring / Spring Boot, SQL / Bases de données, Développement Web, Algorithmes et structures de données", styles["SmallMuted"]),
-        PageBreak(),
-        Paragraph("Questions", styles["SectionQCM"]),
     ]
 
-    for index, question in enumerate(QUESTIONS, start=1):
-        story.extend(question_block(index, question, styles))
+    for category in CATEGORY_ORDER:
+        category_slug = slugify(category)
+        question_anchor = f"questions-{category_slug}"
+        answer_anchor = f"answers-{category_slug}"
+        story.append(
+            Paragraph(
+                f"{toc_link(category, question_anchor)} — {len(grouped[category])} questions — {toc_link('Corrigé', answer_anchor)}",
+                styles["TocEntry"],
+            )
+        )
+        for difficulty in DIFFICULTY_ORDER:
+            difficulty_slug = slugify(difficulty)
+            count = sum(1 for question in grouped[category] if question["difficulty"] == difficulty)
+            story.append(
+                Paragraph(
+                    f"• {toc_link(difficulty, f'{question_anchor}-{difficulty_slug}')} ({count} questions)",
+                    styles["TocSubEntry"],
+                )
+            )
 
-    story.extend([PageBreak(), Paragraph("Corrigés", styles["SectionQCM"])])
+    story.extend(
+        [
+            Spacer(1, 0.12 * cm),
+            cover_table(styles, numbered_questions),
+            Spacer(1, 0.3 * cm),
+            Paragraph("Répartition cible atteinte par catégorie : 38 Basique • 43 Intermédiaire • 27 Avancé (108 questions).", styles["SmallMuted"]),
+            Paragraph("Numérotation globale continue : Q1 à Q648. Identifiants locaux par catégorie : GL-001, JAVA-001, SPR-001, SQL-001, WEB-001, ALGO-001, etc.", styles["SmallMuted"]),
+            PageBreak(),
+        ]
+    )
 
-    for index, question in enumerate(QUESTIONS, start=1):
-        story.extend(answer_block(index, question, styles))
+    for category_index, category in enumerate(CATEGORY_ORDER):
+        category_slug = slugify(category)
+        question_anchor = f"questions-{category_slug}"
+        answer_anchor = f"answers-{category_slug}"
+        color = CATEGORY_COLORS[category]
+        questions_for_category = grouped[category]
+
+        story.append(anchor_paragraph(question_anchor, f"{category} — Questions", styles["CategoryTitle"]))
+        story.append(Paragraph(f"<font color='{color.hexval()}'><b>Préfixe catégorie :</b> {CATEGORY_PREFIXES[category]} — <b>Total :</b> {len(questions_for_category)} questions — <link href='#{toc_anchor}'>Retour à la table des matières</link></font>", styles["SmallMuted"]))
+        story.append(Spacer(1, 0.1 * cm))
+
+        for difficulty in DIFFICULTY_ORDER:
+            difficulty_slug = slugify(difficulty)
+            questions_for_level = [question for question in questions_for_category if question["difficulty"] == difficulty]
+            story.append(anchor_paragraph(f"{question_anchor}-{difficulty_slug}", f"Niveau {difficulty}", styles["DifficultyTitle"]))
+            story.append(Paragraph(f"{len(questions_for_level)} questions pour ce niveau.", styles["SmallMuted"]))
+            for question in questions_for_level:
+                story.extend(question_block(question, styles))
+
+        story.extend([
+            PageBreak(),
+            anchor_paragraph(answer_anchor, f"{category} — Corrigé", styles["CategoryTitle"]),
+            Paragraph(f"<b>Corrigé de la catégorie {html.escape(category)}</b> — <link href='#{question_anchor}'>Retour aux questions de la catégorie</link> • <link href='#{toc_anchor}'>Retour à la table des matières</link>", styles["SmallMuted"]),
+            Spacer(1, 0.1 * cm),
+        ])
+        for question in questions_for_category:
+            story.extend(answer_block(question, styles))
+        if category_index < len(CATEGORY_ORDER) - 1:
+            story.append(PageBreak())
 
     doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
 
