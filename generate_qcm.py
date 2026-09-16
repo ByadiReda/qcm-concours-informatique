@@ -135,7 +135,7 @@ def question_block(index: int, question: dict, styles):
     color = CATEGORY_COLORS[question["category"]]
     meta_text = f"Q{index} • {question['category']} • Niveau {question['difficulty']}"
     header = colored_header(meta_text, color, styles)
-    flowables = [header, Spacer(1, 0.12 * cm), Paragraph(question["statement"], styles["QuestionText"])]
+    flowables = [KeepTogether([header, Spacer(1, 0.12 * cm), Paragraph(question["statement"], styles["QuestionText"])])]
     for label, option in zip(["A", "B", "C", "D"], question["options"]):
         flowables.append(Paragraph(f"<b>{label}.</b> {option}", styles["OptionText"]))
     flowables.append(Spacer(1, 0.25 * cm))
@@ -150,9 +150,7 @@ def answer_block(index: int, question: dict, styles):
         styles,
     )
     return [
-        title,
-        Spacer(1, 0.12 * cm),
-        Paragraph(question["statement"], styles["QuestionText"]),
+        KeepTogether([title, Spacer(1, 0.12 * cm), Paragraph(question["statement"], styles["QuestionText"])]),
         Paragraph(f"<b>Bonne réponse :</b> {question['answer']}", styles["AnswerText"]),
         Paragraph(f"<b>Explication :</b> {question['explanation']}", styles["AnswerText"]),
         Spacer(1, 0.22 * cm),
@@ -201,12 +199,12 @@ def build_pdf() -> None:
     ]
 
     for index, question in enumerate(QUESTIONS, start=1):
-        story.append(KeepTogether(question_block(index, question, styles)))
+        story.extend(question_block(index, question, styles))
 
     story.extend([PageBreak(), Paragraph("Corrigés", styles["SectionQCM"])])
 
     for index, question in enumerate(QUESTIONS, start=1):
-        story.append(KeepTogether(answer_block(index, question, styles)))
+        story.extend(answer_block(index, question, styles))
 
     doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
 
