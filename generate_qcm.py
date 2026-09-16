@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections import Counter
 from pathlib import Path
 
@@ -20,8 +21,6 @@ ROOT = Path(__file__).resolve().parent
 OUTPUT_FILE = ROOT / "QCM_Concours.pdf"
 FONT_NAME = "DejaVuSans"
 FONT_BOLD = "DejaVuSans-Bold"
-FONT_PATH = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
-FONT_BOLD_PATH = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
 
 CATEGORY_COLORS = {
     "Génie logiciel": colors.HexColor("#1d4ed8"),
@@ -33,11 +32,31 @@ CATEGORY_COLORS = {
 }
 
 
+def resolve_font_path(file_name: str) -> Path:
+    candidates = []
+    font_dir = os.environ.get("QCM_FONT_DIR")
+    if font_dir:
+        candidates.append(Path(font_dir) / file_name)
+    candidates.extend(
+        [
+            ROOT / "fonts" / file_name,
+            Path("/usr/share/fonts/truetype/dejavu") / file_name,
+            Path("/usr/local/share/fonts") / file_name,
+            Path.home() / ".local" / "share" / "fonts" / file_name,
+        ]
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(
+        f"Police introuvable: {file_name}. "
+        "Définissez QCM_FONT_DIR ou placez la police dans ./fonts."
+    )
+
+
 def register_fonts() -> None:
-    if not FONT_PATH.exists() or not FONT_BOLD_PATH.exists():
-        raise FileNotFoundError("Polices DejaVu Sans introuvables sur le système.")
-    pdfmetrics.registerFont(TTFont(FONT_NAME, str(FONT_PATH)))
-    pdfmetrics.registerFont(TTFont(FONT_BOLD, str(FONT_BOLD_PATH)))
+    pdfmetrics.registerFont(TTFont(FONT_NAME, str(resolve_font_path("DejaVuSans.ttf"))))
+    pdfmetrics.registerFont(TTFont(FONT_BOLD, str(resolve_font_path("DejaVuSans-Bold.ttf"))))
 
 
 ARABIC_RESHAPER = arabic_reshaper.ArabicReshaper(configuration={"delete_harakat": False})
@@ -63,12 +82,17 @@ def build_styles():
 
 def cover_table(styles):
     category_counts = Counter(question["category"] for question in QUESTIONS)
+    category_difficulty_counts = Counter((question["category"], question["difficulty"]) for question in QUESTIONS)
     rows = [[Paragraph("<b>Catégorie</b>", styles["QuestionText"]), Paragraph("<b>Questions</b>", styles["QuestionText"]), Paragraph("<b>Répartition</b>", styles["QuestionText"])]]
     for category, count in category_counts.items():
+        distribution = " / ".join(
+            f"{category_difficulty_counts[(category, difficulty)]} {difficulty}"
+            for difficulty in ("Basique", "Intermédiaire", "Avancé")
+        )
         rows.append([
             Paragraph(category, styles["QuestionText"]),
             Paragraph(str(count), styles["QuestionText"]),
-            Paragraph("6 Basique / 6 Intermédiaire / 6 Avancé", styles["QuestionText"]),
+            Paragraph(distribution, styles["QuestionText"]),
         ])
     table = Table(rows, colWidths=[6.1 * cm, 2.2 * cm, 7.2 * cm])
     table.setStyle(TableStyle([

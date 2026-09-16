@@ -29,4 +29,10 @@ pip install -r requirements.txt
 python generate_qcm.py
 ```
 
+Le script recherche automatiquement les polices `DejaVuSans.ttf` et `DejaVuSans-Bold.ttf` :
+
+- dans `./fonts/` si vous souhaitez les fournir avec le projet ;
+- dans les emplacements système courants ;
+- ou dans le dossier pointé par la variable d'environnement `QCM_FONT_DIR`.
+
 Le fichier généré sera disponible à la racine du dépôt sous le nom `QCM_Concours.pdf`.
