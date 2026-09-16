@@ -46,6 +46,7 @@ ARABIC_RESHAPER = arabic_reshaper.ArabicReshaper(configuration={"delete_harakat"
 
 class QCMDocTemplate(SimpleDocTemplate):
     def afterFlowable(self, flowable):
+        super().afterFlowable(flowable)
         bookmark_name = getattr(flowable, "_bookmark_name", None)
         if bookmark_name:
             self.canv.bookmarkPage(bookmark_name)
