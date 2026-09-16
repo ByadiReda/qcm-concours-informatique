@@ -319,7 +319,7 @@ def build_pdf() -> None:
 
         story.extend([
             PageBreak(),
-            anchor_paragraph(answer_anchor, f"{category} — Corrigé", styles["CategoryTitle"], outline_level=1),
+            anchor_paragraph(answer_anchor, f"{category} — Corrigé", styles["CategoryTitle"], outline_level=0),
             Paragraph(f"<b>Corrigé de la catégorie {html.escape(category)}</b> — <link href='#{question_anchor}'>Retour aux questions de la catégorie</link> • <link href='#{toc_anchor}'>Retour à la table des matières</link>", styles["SmallMuted"]),
             Spacer(1, 0.1 * cm),
         ])

@@ -15,6 +15,7 @@ CATEGORY_PREFIXES = {'Génie logiciel': 'GL',
  'Développement Web': 'WEB',
  'Algorithmes et structures de données': 'ALGO'}
 DIFFICULTY_TARGETS = {'Basique': 38, 'Intermédiaire': 43, 'Avancé': 27}
+TOPICS_USED_PER_CATEGORY = 16
 
 
 def q(category, difficulty, statement, options, answer, explanation):
@@ -864,6 +865,7 @@ SEED_QUESTIONS = [{'category': 'Génie logiciel',
   'options': ['Un tas binaire', 'Une liste simplement chaînée non triée', 'Un tableau 2D', 'Une pile'],
   'answer': 'A',
   'explanation': 'Le tas binaire offre de bonnes complexités pour insertion et extraction du minimum/maximum.'}]
+SEED_PAIR_COUNTS = Counter((question["category"], question["difficulty"]) for question in SEED_QUESTIONS)
 
 TOPIC_BANKS = {'Génie logiciel': [('Cycle en V',
                      'relie explicitement chaque phase de spécification à une phase de vérification ou de validation '
@@ -1327,9 +1329,9 @@ TOPIC_BANKS = {'Génie logiciel': [('Cycle en V',
                                            'solution sous-optimale')]}
 
 def _validate_topic_bank(category, topics):
-    if len(topics) < 16:
+    if len(topics) < TOPICS_USED_PER_CATEGORY:
         raise ValueError(
-            f"La banque de thèmes de {category} doit contenir au moins 16 entrées pour générer les volumes attendus."
+            f"La banque de thèmes de {category} doit contenir au moins {TOPICS_USED_PER_CATEGORY} entrées pour générer les volumes attendus."
         )
 
 
@@ -1356,6 +1358,10 @@ def _build_options(correct, distractors, seed):
     answer_index = seed % 4
     options.insert(answer_index, correct)
     return options, "ABCD"[answer_index]
+
+
+def _required_generated_count(category, difficulty):
+    return DIFFICULTY_TARGETS[difficulty] - SEED_PAIR_COUNTS[(category, difficulty)]
 
 
 def _basic_questions(category, topics):
@@ -1391,6 +1397,7 @@ def _basic_questions(category, topics):
 
 def _intermediate_questions(category, topics):
     generated = []
+    required = _required_generated_count(category, "Intermédiaire")
     for index, (concept, definition, application, advanced) in enumerate(topics):
         distractors = _pick(topics, index, lambda item: _sentence(item[2]), offset=2)
         options, answer = _build_options(_sentence(application), distractors, index + 31)
@@ -1417,7 +1424,10 @@ def _intermediate_questions(category, topics):
                 _sentence(f"Le concept à mobiliser est {concept} car il sert à {application}"),
             )
         )
-    for index, (concept, definition, application, advanced) in enumerate(topics[:5]):
+    remaining = required - len(generated)
+    if remaining < 0 or remaining > len(topics):
+        raise ValueError(f"Impossible de générer {required} questions intermédiaires pour {category}.")
+    for index, (concept, definition, application, advanced) in enumerate(topics[:remaining]):
         correct = _sentence(f"{concept} est surtout utile pour {application}")
         distractors = _pick(topics, index, lambda item: _sentence(f"{item[0]} est surtout utile pour {item[2]}"), offset=7)
         options, answer = _build_options(correct, distractors, index + 79)
@@ -1431,11 +1441,14 @@ def _intermediate_questions(category, topics):
                 _sentence(f"La réponse correcte relie {concept} à son usage principal : {application}"),
             )
         )
+    if len(generated) != required:
+        raise ValueError(f"Le nombre de questions intermédiaires générées pour {category} est invalide: {len(generated)} au lieu de {required}.")
     return generated
 
 
 def _advanced_questions(category, topics):
     generated = []
+    required = _required_generated_count(category, "Avancé")
     for index, (concept, definition, application, advanced) in enumerate(topics):
         distractors = _pick(topics, index, lambda item: _sentence(item[3]), offset=3)
         options, answer = _build_options(_sentence(advanced), distractors, index + 101)
@@ -1449,7 +1462,10 @@ def _advanced_questions(category, topics):
                 _sentence(f"Le point clé sur {concept} est que {advanced}"),
             )
         )
-    for index, (concept, definition, application, advanced) in enumerate(topics[:5]):
+    remaining = required - len(generated)
+    if remaining < 0 or remaining > len(topics):
+        raise ValueError(f"Impossible de générer {required} questions avancées pour {category}.")
+    for index, (concept, definition, application, advanced) in enumerate(topics[:remaining]):
         distractors = _pick(topics, index, lambda item: item[0], offset=9)
         options, answer = _build_options(concept, distractors, index + 137)
         generated.append(
@@ -1462,13 +1478,16 @@ def _advanced_questions(category, topics):
                 _sentence(f"Cette nuance renvoie à {concept} : {advanced}"),
             )
         )
+    if len(generated) != required:
+        raise ValueError(f"Le nombre de questions avancées générées pour {category} est invalide: {len(generated)} au lieu de {required}.")
     return generated
 
 
 def _generated_questions_for_category(category):
     topics = TOPIC_BANKS[category]
     _validate_topic_bank(category, topics)
-    return _basic_questions(category, topics) + _intermediate_questions(category, topics) + _advanced_questions(category, topics[:16])
+    selected_topics = topics[:TOPICS_USED_PER_CATEGORY]
+    return _basic_questions(category, selected_topics) + _intermediate_questions(category, selected_topics) + _advanced_questions(category, selected_topics)
 
 
 def build_questions():
